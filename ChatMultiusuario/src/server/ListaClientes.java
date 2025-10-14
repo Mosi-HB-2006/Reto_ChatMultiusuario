@@ -71,13 +71,59 @@ public class ListaClientes {
     }
 
     /**
-     * Lista los nombres de todos los clientes conectados
+     * Notifica a todos los clientes (excepto al nuevo) cuando alguien se conecta
      */
-    public synchronized String[] getClientesConectados() {
-        String[] nombres = new String[clientes.size()];
-        for (int i = 0; i < clientes.size(); i++) {
-            nombres[i] = (String) clientes.get(i)[0];
+    public synchronized void notificarConexion(String nuevoCliente) {
+        String mensajeNotificacion = ">>> " + nuevoCliente + " se ha conectado al chat <<<";
+        int enviados = 0;
+
+        for (Object[] cliente : clientes) {
+            String nombreCliente = (String) cliente[0];
+            ObjectOutputStream salidaCliente = (ObjectOutputStream) cliente[1];
+
+            try {
+                salidaCliente.writeObject(mensajeNotificacion);
+                enviados++;
+            } catch (Exception e) {
+                logger.logError("Error notificando conexión a " + nombreCliente + ": " + e.getMessage());
+                // Si hay error, remover el cliente (probablemente desconectado)
+                clientes.remove(cliente);
+            }
         }
-        return nombres;
+
+        logger.log("Notificación de conexión enviada a " + enviados + " clientes");
+    }
+
+    /**
+     * Envía un mensaje privado a un destinatario específico
+     * @param remitente El nombre del cliente que envía el mensaje
+     * @param destinatario El nombre del cliente que debe recibir el mensaje
+     * @param mensaje El contenido del mensaje
+     * @return true si el mensaje fue entregado correctamente, false si el destinatario no existe
+     */
+    public synchronized boolean enviarMensajePrivado(String remitente, String destinatario, String mensaje) {
+        boolean entregado = false;
+
+        for (Object[] cliente : clientes) {
+            String nombreCliente = (String) cliente[0];
+            ObjectOutputStream salidaCliente = (ObjectOutputStream) cliente[1];
+
+            if (nombreCliente.equals(destinatario)) {
+                try {
+                    String mensajeFormateado = "[Privado de " + remitente + "] " + mensaje;
+                    salidaCliente.writeObject(mensajeFormateado);
+                    logger.log("Mensaje privado entregado de " + remitente + " a " + destinatario);
+                    entregado = true;
+                    return entregado; // Encontramos al destinatario y enviamos correctamente
+                } catch (Exception e) {
+                    logger.logError("Error enviando mensaje privado a " + destinatario + ": " + e.getMessage());
+                    // Si hay error, remover el cliente (probablemente desconectado)
+                    clientes.remove(cliente);
+                    return false; // Error al enviar, salimos del método
+                }
+            }
+        }
+
+        return entregado; // Destinatario no encontrado
     }
 }

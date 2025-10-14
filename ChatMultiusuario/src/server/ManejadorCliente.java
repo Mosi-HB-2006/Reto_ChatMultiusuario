@@ -42,6 +42,9 @@ public class ManejadorCliente implements Runnable {
             // Agregar cliente a la lista de clientes conectados
             listaClientes.agregarCliente(clientName, salida);
 
+            // Notificar a los demás clientes que este usuario se ha conectado
+            listaClientes.notificarConexion(clientName);
+
             // Enviar confirmación al cliente
             salida.writeObject("Conexión exitosa al servidor. Bienvenido " + clientName);
 
@@ -66,11 +69,51 @@ public class ManejadorCliente implements Runnable {
                     if (!mensajeCliente.trim().isEmpty()) {
                         System.out.println("[Cliente " + clientName + "] dice: " + mensajeCliente);
 
-                        // Retransmitir mensaje público a todos los demás clientes
-                        listaClientes.retransmitirMensajePublico(clientName, mensajeCliente);
+                        // Verificar si es un mensaje privado (empieza con @usuario)
+                        if (mensajeCliente.startsWith("@")) {
+                            // Procesar mensaje privado
+                            int espacioIndex = mensajeCliente.indexOf(" ");
+                            if (espacioIndex > 1) { // Debe haber al menos un carácter después del @
+                                String destinatario = mensajeCliente.substring(1, espacioIndex);
+                                String mensajePrivado = mensajeCliente.substring(espacioIndex + 1).trim();
 
-                        // Registrar el mensaje en el log
-                        logger.logPublicMessage(clientName, mensajeCliente);
+                                if (!mensajePrivado.isEmpty()) {
+                                    boolean entregado = listaClientes.enviarMensajePrivado(clientName, destinatario, mensajePrivado);
+
+                                    // Informar al remitente si el mensaje fue entregado
+                                    try {
+                                        if (entregado) {
+                                            salida.writeObject("Mensaje privado enviado a " + destinatario);
+                                        } else {
+                                            salida.writeObject("Error: Usuario '" + destinatario + "' no encontrado o no conectado");
+                                        }
+                                    } catch (Exception e) {
+                                        logger.logError("Error enviando confirmación a " + clientName + ": " + e.getMessage());
+                                    }
+
+                                    // Registrar el mensaje privado en el log
+                                    logger.logPrivateMessage(clientName, destinatario, mensajePrivado);
+                                } else {
+                                    try {
+                                        salida.writeObject("Error: El mensaje privado no puede estar vacío");
+                                    } catch (Exception e) {
+                                        logger.logError("Error enviando error a " + clientName + ": " + e.getMessage());
+                                    }
+                                }
+                            } else {
+                                try {
+                                    salida.writeObject("Error: Formato de mensaje privado incorrecto. Use: @usuario mensaje");
+                                } catch (Exception e) {
+                                    logger.logError("Error enviando formato incorrecto a " + clientName + ": " + e.getMessage());
+                                }
+                            }
+                        } else {
+                            // Es un mensaje público - retransmitir a todos los demás clientes
+                            listaClientes.retransmitirMensajePublico(clientName, mensajeCliente);
+
+                            // Registrar el mensaje en el log
+                            logger.logPublicMessage(clientName, mensajeCliente);
+                        }
                     }
                 }
             }
