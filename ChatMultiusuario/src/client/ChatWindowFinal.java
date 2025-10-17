@@ -8,7 +8,13 @@ package client;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import javax.swing.JOptionPane;
+import javax.swing.JTextArea;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
 /**
  *
@@ -20,6 +26,8 @@ public class ChatWindowFinal extends javax.swing.JFrame {
     private Socket socket;
     private ObjectInputStream in;
     private ObjectOutputStream out;
+    private JTextArea publicTextArea;
+    private List<String> publicBuffer;
 
     /**
      * Creates new form ChatWindowFinal
@@ -39,6 +47,43 @@ public class ChatWindowFinal extends javax.swing.JFrame {
                 userLabel.setText("Usuario: " + this.username);
             }
         } catch (Exception ignore) {}
+
+        // Initialize buffer and UI area
+        publicBuffer = Collections.synchronizedList(new ArrayList<>());
+        publicTextArea = new JTextArea();
+        publicTextArea.setEditable(false);
+        publicScrollPane.setViewportView(publicTextArea);
+
+        // Background reader: store messages into buffer
+        Thread reader = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while (true) {
+                        Object obj = in.readObject();
+                        if (obj != null) {
+                            publicBuffer.add(String.valueOf(obj));
+                        }
+                    }
+                } catch (Exception e) {
+                    // Socket closed or error; stop thread silently
+                }
+            }
+        });
+        reader.setDaemon(true);
+        reader.start();
+
+        // UI refresh timer: every 5 seconds, render buffer to text area
+        Timer refreshTimer = new Timer(5000, evt -> {
+            List<String> snapshot;
+            synchronized (publicBuffer) {
+                snapshot = new ArrayList<>(publicBuffer);
+            }
+            String text = String.join("\n", snapshot);
+            SwingUtilities.invokeLater(() -> publicTextArea.setText(text));
+        });
+        refreshTimer.setRepeats(true);
+        refreshTimer.start();
     }
 
     /**
