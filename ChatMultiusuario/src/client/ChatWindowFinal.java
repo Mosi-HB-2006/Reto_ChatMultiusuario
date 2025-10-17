@@ -5,17 +5,40 @@
  */
 package client;
 
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.Socket;
+import javax.swing.JOptionPane;
+
 /**
  *
  * @author Mosi
  */
 public class ChatWindowFinal extends javax.swing.JFrame {
 
+    private String username;
+    private Socket socket;
+    private ObjectInputStream in;
+    private ObjectOutputStream out;
+
     /**
      * Creates new form ChatWindowFinal
      */
     public ChatWindowFinal() {
         initComponents();
+    }
+
+    public ChatWindowFinal(String username, Socket socket, ObjectOutputStream out, ObjectInputStream in) {
+        this.username = username;
+        this.socket = socket;
+        this.out = out;
+        this.in = in;
+        initComponents();
+        try {
+            if (this.username != null) {
+                userLabel.setText("Usuario: " + this.username);
+            }
+        } catch (Exception ignore) {}
     }
 
     /**
@@ -122,7 +145,17 @@ public class ChatWindowFinal extends javax.swing.JFrame {
     }//GEN-LAST:event_messageFieldActionPerformed
 
     private void sendBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_sendBtnActionPerformed
-        // TODO add your handling code here:
+        try {
+            if (out != null) {
+                String msg = messageField.getText();
+                if (msg != null && !msg.trim().isEmpty()) {
+                    out.writeObject(msg.trim());
+                    messageField.setText("");
+                }
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error enviando mensaje: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }//GEN-LAST:event_sendBtnActionPerformed
 
     private void publicRadioBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_publicRadioBtnActionPerformed

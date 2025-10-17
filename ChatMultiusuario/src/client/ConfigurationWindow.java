@@ -4,6 +4,11 @@
  * and open the template in the editor.
  */
 package client;
+ 
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.Socket;
+import javax.swing.JOptionPane;
 
 /**
  *
@@ -134,7 +139,47 @@ public class ConfigurationWindow extends javax.swing.JFrame {
     }//GEN-LAST:event_portFieldActionPerformed
 
     private void connectBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_connectBtnActionPerformed
-        // TODO add your handling code here:
+        String username = usernameField.getText() != null ? usernameField.getText().trim() : "";
+        String host = ipField.getText() != null ? ipField.getText().trim() : "";
+        String portText = portField.getText() != null ? portField.getText().trim() : "";
+
+        boolean valid = true;
+        if (host.isEmpty() || portText.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "IP y puerto son obligatorios", "Datos inválidos", JOptionPane.WARNING_MESSAGE);
+            valid = false;
+        }
+
+        int port = -1;
+        if (valid) {
+            try {
+                port = Integer.parseInt(portText);
+            } catch (NumberFormatException nfe) {
+                JOptionPane.showMessageDialog(this, "El puerto debe ser numérico", "Datos inválidos", JOptionPane.WARNING_MESSAGE);
+                valid = false;
+            }
+        }
+
+        if (valid) {
+            try {
+                Socket socket = new Socket(host, port);
+
+                ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+                out.writeObject(username.isEmpty() ? "Usuario" : username);
+                out.flush();
+
+                ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+                try { in.readObject(); } catch (Exception ignore) {}
+
+                try { out.writeObject("Hola"); out.flush(); } catch (Exception ignore) {}
+
+                ChatWindowFinal chat = new ChatWindowFinal(username.isEmpty() ? "Usuario" : username, socket, out, in);
+                chat.setLocationRelativeTo(null);
+                chat.setVisible(true);
+                this.dispose();
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this, "No se pudo conectar: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }//GEN-LAST:event_connectBtnActionPerformed
 
     /**

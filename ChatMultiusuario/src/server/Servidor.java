@@ -48,21 +48,24 @@ public class Servidor {
                     } else {
                         activas = conexionesActivas.incrementar();
 
-                        // Recibir el nombre del cliente
-                        try (ObjectInputStream entradaCliente = new ObjectInputStream(cliente.getInputStream())) {
+                        ObjectInputStream entradaCliente = null;
+                        // Recibir el nombre del cliente (no cerrar el stream aquí para no cerrar el socket)
+                        try {
+                            entradaCliente = new ObjectInputStream(cliente.getInputStream());
                             Object nombreObj = entradaCliente.readObject();
                             if (nombreObj instanceof String && !((String) nombreObj).trim().isEmpty()) {
                                 nombre = (String) nombreObj;
                             } else {
                                 nombre = "Usuario";  // Nombre por defecto simple
                             }
+                            // No cerrar entradaCliente aquí; ManejadorCliente creará sus propios streams sobre el socket
                         } catch (Exception e) {
                             nombre = "Usuario";  // Nombre por defecto si hay error
                         }
                         System.out.println("Cliente " + nombre + " conectado desde " + cliente.getInetAddress().getHostAddress() + ". Conexiones activas: " + activas);
                         logger.logUserConnected(nombre, cliente.getInetAddress().getHostAddress());
 
-                        hilo = new Thread(new ManejadorCliente(cliente, nombre, conexionesActivas, logger, listaClientes));
+                        hilo = new Thread(new ManejadorCliente(cliente, nombre, conexionesActivas, logger, listaClientes, entradaCliente));
                         hilo.start();
                     }
 

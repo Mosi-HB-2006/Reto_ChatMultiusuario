@@ -16,13 +16,15 @@ public class ManejadorCliente implements Runnable {
     private  Contador conexionesActivas;
     private  Logger logger;
     private  ListaClientes listaClientes;
+    private  ObjectInputStream entrada;
 
-    public ManejadorCliente(Socket socket, String clientName, Contador conexionesActivas, Logger logger, ListaClientes listaClientes) {
+    public ManejadorCliente(Socket socket, String clientName, Contador conexionesActivas, Logger logger, ListaClientes listaClientes, ObjectInputStream entrada) {
         this.socket = socket;
         this.clientName = clientName;
         this.conexionesActivas = conexionesActivas;
         this.logger = logger;
         this.listaClientes = listaClientes;
+        this.entrada = entrada;
     }
 
     @Override
@@ -37,7 +39,7 @@ public class ManejadorCliente implements Runnable {
         try {
             s = this.socket;
             salida = new ObjectOutputStream(s.getOutputStream());
-            entrada = new ObjectInputStream(s.getInputStream());
+            entrada = this.entrada; // reutilizar la entrada proporcionada por el servidor
 
             // Agregar cliente a la lista de clientes conectados
             listaClientes.agregarCliente(clientName, salida);
