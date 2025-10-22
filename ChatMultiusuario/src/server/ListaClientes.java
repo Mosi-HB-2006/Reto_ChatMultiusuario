@@ -9,9 +9,11 @@ import java.util.List;
 
 /**
  * Clase simple para manejar la lista de clientes conectados usando ArrayList
+ *
  * @author 2dami
  */
 public class ListaClientes {
+
     private List<Object[]> clientes;
     private Logger logger;
 
@@ -47,16 +49,13 @@ public class ListaClientes {
             String nombreCliente = (String) cliente[0];
             ObjectOutputStream salidaCliente = (ObjectOutputStream) cliente[1];
 
-            // No enviar el mensaje al propio remitente
-            if (!nombreCliente.equals(remitente)) {
-                try {
-                    salidaCliente.writeObject(mensajeFormateado);
-                    enviados++;
-                } catch (Exception e) {
-                    logger.logError("Error retransmitiendo a " + nombreCliente + ": " + e.getMessage());
-                    // Si hay error, remover el cliente (probablemente desconectado)
-                    clientes.remove(cliente);
-                }
+            try {
+                salidaCliente.writeObject(mensajeFormateado);
+                enviados++;
+            } catch (Exception e) {
+                logger.logError("Error retransmitiendo a " + nombreCliente + ": " + e.getMessage());
+                // Si hay error, remover el cliente (probablemente desconectado)
+                clientes.remove(cliente);
             }
         }
 
@@ -71,7 +70,8 @@ public class ListaClientes {
     }
 
     /**
-     * Notifica a todos los clientes (excepto al nuevo) cuando alguien se conecta
+     * Notifica a todos los clientes (excepto al nuevo) cuando alguien se
+     * conecta
      */
     public synchronized void notificarConexion(String nuevoCliente) {
         String mensajeNotificacion = ">>> " + nuevoCliente + " se ha conectado al chat <<<";
@@ -96,10 +96,12 @@ public class ListaClientes {
 
     /**
      * Envía un mensaje privado a un destinatario específico
+     *
      * @param remitente El nombre del cliente que envía el mensaje
      * @param destinatario El nombre del cliente que debe recibir el mensaje
      * @param mensaje El contenido del mensaje
-     * @return true si el mensaje fue entregado correctamente, false si el destinatario no existe
+     * @return true si el mensaje fue entregado correctamente, false si el
+     * destinatario no existe
      */
     public synchronized boolean enviarMensajePrivado(String remitente, String destinatario, String mensaje) {
         boolean entregado = false;

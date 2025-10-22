@@ -144,7 +144,7 @@ public class ConfigurationWindow extends javax.swing.JFrame {
         String portText = portField.getText() != null ? portField.getText().trim() : "";
 
         boolean valid = true;
-        if (host.isEmpty() || portText.isEmpty()) {
+        if (host.isEmpty() || portText.isEmpty() || username.isEmpty()) {
             JOptionPane.showMessageDialog(this, "IP y puerto son obligatorios", "Datos inválidos", JOptionPane.WARNING_MESSAGE);
             valid = false;
         }
