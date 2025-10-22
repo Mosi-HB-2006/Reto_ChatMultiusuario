@@ -29,6 +29,8 @@ public class ChatWindowFinal extends javax.swing.JFrame {
     private JTextArea publicTextArea;
     private List<String> publicBuffer;
     private List<String> latestUsers;
+    private JTextArea privateTextArea;
+    private List<String> privateBuffer;
 
     /**
      * Creates new form ChatWindowFinal
@@ -52,9 +54,13 @@ public class ChatWindowFinal extends javax.swing.JFrame {
         // Initialize buffer and UI area
         publicBuffer = Collections.synchronizedList(new ArrayList<>());
         latestUsers = Collections.synchronizedList(new ArrayList<>());
+        privateBuffer = Collections.synchronizedList(new ArrayList<>());
         publicTextArea = new JTextArea();
         publicTextArea.setEditable(false);
         publicScrollPane.setViewportView(publicTextArea);
+        privateTextArea = new JTextArea();
+        privateTextArea.setEditable(false);
+        privateScrollPane.setViewportView(privateTextArea);
 
         // Background reader: store messages into buffer
         Thread reader = new Thread(new Runnable() {
@@ -89,6 +95,12 @@ public class ChatWindowFinal extends javax.swing.JFrame {
                                     }
                                 } else if (s.trim().equalsIgnoreCase("GET_USERS")) {
                                     // Ignorar comandos de control si llegaran por alguna razón
+                                } else if (s.startsWith("[Privado de ")) {
+                                    synchronized (privateBuffer) {
+                                        privateBuffer.add(s);
+                                    }
+                                } else if (s.startsWith("Mensaje privado enviado a ")) {
+                                    // No mostrar confirmaciones del servidor, ya realizamos eco local
                                 } else {
                                     publicBuffer.add(s);
                                 }
@@ -113,6 +125,18 @@ public class ChatWindowFinal extends javax.swing.JFrame {
         });
         refreshTimer.setRepeats(true);
         refreshTimer.start();
+
+        // Private area refresh timer
+        Timer privateTimer = new Timer(3000, evt -> {
+            List<String> snapshot;
+            synchronized (privateBuffer) {
+                snapshot = new ArrayList<>(privateBuffer);
+            }
+            String text = String.join("\n", snapshot);
+            SwingUtilities.invokeLater(() -> privateTextArea.setText(text));
+        });
+        privateTimer.setRepeats(true);
+        privateTimer.start();
 
         // Users combo refresh timer
         Timer usersTimer = new Timer(3000, evt -> {
@@ -242,8 +266,28 @@ public class ChatWindowFinal extends javax.swing.JFrame {
             if (out != null) {
                 String msg = messageField.getText();
                 if (msg != null && !msg.trim().isEmpty()) {
-                    out.writeObject(msg.trim());
-                    messageField.setText("");
+                    String toSend = msg.trim();
+                    boolean canSend = true;
+                    boolean isPrivate = false;
+                    String privateEcho = null;
+                    if (privateRadioBtn.isSelected()) {
+                        String target = (String) userComboBox.getSelectedItem();
+                        if (target == null || target.trim().isEmpty()) {
+                            JOptionPane.showMessageDialog(this, "Selecciona un usuario para mensaje privado", "Aviso", JOptionPane.INFORMATION_MESSAGE);
+                            canSend = false;
+                        } else {
+                            isPrivate = true;
+                            privateEcho = "[Privado de " + (username != null ? username : "Yo") + "] " + toSend;
+                            toSend = "@" + target.trim() + " " + toSend;
+                        }
+                    }
+                    if (canSend) {
+                        out.writeObject(toSend);
+                        if (isPrivate && privateEcho != null) {
+                            synchronized (privateBuffer) { privateBuffer.add(privateEcho); }
+                        }
+                        messageField.setText("");
+                    }
                 }
             }
         } catch (Exception e) {
