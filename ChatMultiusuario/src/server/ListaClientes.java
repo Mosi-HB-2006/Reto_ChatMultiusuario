@@ -28,6 +28,7 @@ public class ListaClientes {
     public synchronized void agregarCliente(String nombre, ObjectOutputStream salida) {
         clientes.add(new Object[]{nombre, salida});
         logger.log("Cliente agregado: " + nombre + " (Total: " + clientes.size() + ")");
+        difundirUsuarios();
     }
 
     /**
@@ -36,6 +37,7 @@ public class ListaClientes {
     public synchronized void removerCliente(String nombre) {
         clientes.removeIf(cliente -> nombre.equals((String) cliente[0]));
         logger.log("Cliente removido: " + nombre + " (Total: " + clientes.size() + ")");
+        difundirUsuarios();
     }
 
     /**
@@ -60,6 +62,32 @@ public class ListaClientes {
         }
 
         logger.log("Mensaje público retransmitido de " + remitente + " a " + enviados + " clientes");
+    }
+
+    public synchronized List<String> obtenerNombresSnapshot() {
+        List<String> nombres = new ArrayList<>();
+        for (Object[] c : clientes) {
+            nombres.add((String) c[0]);
+        }
+        return nombres;
+    }
+
+    private synchronized void difundirUsuarios() {
+        List<String> nombres = obtenerNombresSnapshot();
+        for (Object[] cliente : clientes) {
+            ObjectOutputStream salidaCliente = (ObjectOutputStream) cliente[1];
+            try {
+                salidaCliente.writeObject(nombres);
+                salidaCliente.flush();
+                try { salidaCliente.reset(); } catch (Exception ignore) {}
+            } catch (Exception e) {
+                logger.logError("Error enviando lista de usuarios a " + (String) cliente[0] + ": " + e.getMessage());
+            }
+        }
+    }
+
+    public void difundirUsuariosAhora() {
+        difundirUsuarios();
     }
 
     /**

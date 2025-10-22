@@ -44,6 +44,16 @@ public class ManejadorCliente implements Runnable {
             // Agregar cliente a la lista de clientes conectados
             listaClientes.agregarCliente(clientName, salida);
 
+            // Enviar la lista de usuarios al nuevo cliente inmediatamente
+            try {
+                java.util.List<String> snapshot = listaClientes.obtenerNombresSnapshot();
+                salida.writeObject(snapshot);
+                salida.flush();
+                try { salida.reset(); } catch (Exception ignore) {}
+            } catch (Exception e) {
+                logger.logError("Error enviando lista inicial a " + clientName + ": " + e.getMessage());
+            }
+
             // Notificar a los demás clientes que este usuario se ha conectado
             listaClientes.notificarConexion(clientName);
 
@@ -69,52 +79,66 @@ public class ManejadorCliente implements Runnable {
 
                     // Si el mensaje no está vacío, procesarlo
                     if (!mensajeCliente.trim().isEmpty()) {
-                        System.out.println("[Cliente " + clientName + "] dice: " + mensajeCliente);
+                        String trimmed = mensajeCliente.trim();
 
-                        // Verificar si es un mensaje privado (empieza con @usuario)
-                        if (mensajeCliente.startsWith("@")) {
-                            // Procesar mensaje privado
-                            int espacioIndex = mensajeCliente.indexOf(" ");
-                            if (espacioIndex > 1) { // Debe haber al menos un carácter después del @
-                                String destinatario = mensajeCliente.substring(1, espacioIndex);
-                                String mensajePrivado = mensajeCliente.substring(espacioIndex + 1).trim();
+                        // Comando para solicitar la lista de usuarios (no loguear ni retransmitir)
+                        if ("GET_USERS".equalsIgnoreCase(trimmed)) {
+                            try {
+                                java.util.List<String> snapshot = listaClientes.obtenerNombresSnapshot();
+                                salida.writeObject(snapshot);
+                                salida.flush();
+                                try { salida.reset(); } catch (Exception ignore) {}
+                            } catch (Exception e) {
+                                logger.logError("Error enviando GET_USERS a " + clientName + ": " + e.getMessage());
+                            }
+                        } else {
+                            System.out.println("[Cliente " + clientName + "] dice: " + mensajeCliente);
 
-                                if (!mensajePrivado.isEmpty()) {
-                                    boolean entregado = listaClientes.enviarMensajePrivado(clientName, destinatario, mensajePrivado);
+                            // Verificar si es un mensaje privado (empieza con @usuario)
+                            if (mensajeCliente.startsWith("@")) {
+                                // Procesar mensaje privado
+                                int espacioIndex = mensajeCliente.indexOf(" ");
+                                if (espacioIndex > 1) { // Debe haber al menos un carácter después del @
+                                    String destinatario = mensajeCliente.substring(1, espacioIndex);
+                                    String mensajePrivado = mensajeCliente.substring(espacioIndex + 1).trim();
 
-                                    // Informar al remitente si el mensaje fue entregado
-                                    try {
-                                        if (entregado) {
-                                            salida.writeObject("Mensaje privado enviado a " + destinatario);
-                                        } else {
-                                            salida.writeObject("Error: Usuario '" + destinatario + "' no encontrado o no conectado");
+                                    if (!mensajePrivado.isEmpty()) {
+                                        boolean entregado = listaClientes.enviarMensajePrivado(clientName, destinatario, mensajePrivado);
+
+                                        // Informar al remitente si el mensaje fue entregado
+                                        try {
+                                            if (entregado) {
+                                                salida.writeObject("Mensaje privado enviado a " + destinatario);
+                                            } else {
+                                                salida.writeObject("Error: Usuario '" + destinatario + "' no encontrado o no conectado");
+                                            }
+                                        } catch (Exception e) {
+                                            logger.logError("Error enviando confirmación a " + clientName + ": " + e.getMessage());
                                         }
-                                    } catch (Exception e) {
-                                        logger.logError("Error enviando confirmación a " + clientName + ": " + e.getMessage());
-                                    }
 
-                                    // Registrar el mensaje privado en el log
-                                    logger.logPrivateMessage(clientName, destinatario, mensajePrivado);
+                                        // Registrar el mensaje privado en el log
+                                        logger.logPrivateMessage(clientName, destinatario, mensajePrivado);
+                                    } else {
+                                        try {
+                                            salida.writeObject("Error: El mensaje privado no puede estar vacío");
+                                        } catch (Exception e) {
+                                            logger.logError("Error enviando error a " + clientName + ": " + e.getMessage());
+                                        }
+                                    }
                                 } else {
                                     try {
-                                        salida.writeObject("Error: El mensaje privado no puede estar vacío");
+                                        salida.writeObject("Error: Formato de mensaje privado incorrecto. Use: @usuario mensaje");
                                     } catch (Exception e) {
-                                        logger.logError("Error enviando error a " + clientName + ": " + e.getMessage());
+                                        logger.logError("Error enviando formato incorrecto a " + clientName + ": " + e.getMessage());
                                     }
                                 }
                             } else {
-                                try {
-                                    salida.writeObject("Error: Formato de mensaje privado incorrecto. Use: @usuario mensaje");
-                                } catch (Exception e) {
-                                    logger.logError("Error enviando formato incorrecto a " + clientName + ": " + e.getMessage());
-                                }
-                            }
-                        } else {
-                            // Es un mensaje público - retransmitir a todos los demás clientes
-                            listaClientes.retransmitirMensajePublico(clientName, mensajeCliente);
+                                // Es un mensaje público - retransmitir a todos los demás clientes
+                                listaClientes.retransmitirMensajePublico(clientName, mensajeCliente);
 
-                            // Registrar el mensaje en el log
-                            logger.logPublicMessage(clientName, mensajeCliente);
+                                // Registrar el mensaje en el log
+                                logger.logPublicMessage(clientName, mensajeCliente);
+                            }
                         }
                     }
                 }

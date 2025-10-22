@@ -168,7 +168,6 @@ public class ConfigurationWindow extends javax.swing.JFrame {
                 out.flush();
 
                 ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-                try { in.readObject(); } catch (Exception ignore) {}
 
                 try { out.writeObject("Hola"); out.flush(); } catch (Exception ignore) {}
 

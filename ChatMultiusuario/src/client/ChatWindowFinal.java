@@ -28,6 +28,7 @@ public class ChatWindowFinal extends javax.swing.JFrame {
     private ObjectOutputStream out;
     private JTextArea publicTextArea;
     private List<String> publicBuffer;
+    private List<String> latestUsers;
 
     /**
      * Creates new form ChatWindowFinal
@@ -50,6 +51,7 @@ public class ChatWindowFinal extends javax.swing.JFrame {
 
         // Initialize buffer and UI area
         publicBuffer = Collections.synchronizedList(new ArrayList<>());
+        latestUsers = Collections.synchronizedList(new ArrayList<>());
         publicTextArea = new JTextArea();
         publicTextArea.setEditable(false);
         publicScrollPane.setViewportView(publicTextArea);
@@ -62,7 +64,35 @@ public class ChatWindowFinal extends javax.swing.JFrame {
                     while (true) {
                         Object obj = in.readObject();
                         if (obj != null) {
-                            publicBuffer.add(String.valueOf(obj));
+                            if (obj instanceof List) {
+                                List<?> list = (List<?>) obj;
+                                boolean allStrings = areAllStrings(list);
+                                if (allStrings) {
+                                    synchronized (latestUsers) {
+                                        latestUsers.clear();
+                                        for (Object o : list) { latestUsers.add((String) o); }
+                                    }
+                                } else {
+                                    publicBuffer.add(String.valueOf(obj));
+                                }
+                            } else {
+                                String s = String.valueOf(obj);
+                                if (s.startsWith("USERS:")) {
+                                    String rest = s.substring("USERS:".length());
+                                    String[] parts = rest.split(",");
+                                    synchronized (latestUsers) {
+                                        latestUsers.clear();
+                                        for (String p : parts) {
+                                            String u = p.trim();
+                                            if (!u.isEmpty()) latestUsers.add(u);
+                                        }
+                                    }
+                                } else if (s.trim().equalsIgnoreCase("GET_USERS")) {
+                                    // Ignorar comandos de control si llegaran por alguna razón
+                                } else {
+                                    publicBuffer.add(s);
+                                }
+                            }
                         }
                     }
                 } catch (Exception e) {
@@ -70,7 +100,6 @@ public class ChatWindowFinal extends javax.swing.JFrame {
                 }
             }
         });
-        reader.setDaemon(true);
         reader.start();
 
         // UI refresh timer: every 5 seconds, render buffer to text area
@@ -84,6 +113,25 @@ public class ChatWindowFinal extends javax.swing.JFrame {
         });
         refreshTimer.setRepeats(true);
         refreshTimer.start();
+
+        // Users combo refresh timer
+        Timer usersTimer = new Timer(3000, evt -> {
+            List<String> usersSnapshot;
+            synchronized (latestUsers) {
+                usersSnapshot = new ArrayList<>(latestUsers);
+            }
+            refreshUsersComboBox(usersSnapshot);
+        });
+        usersTimer.setRepeats(true);
+        usersTimer.start();
+
+        // Request user list on start (in case initial broadcast was missed)
+        try {
+            if (out != null) {
+                out.writeObject("GET_USERS");
+                out.flush();
+            }
+        } catch (Exception ignore) {}
     }
 
     /**
@@ -131,7 +179,7 @@ public class ChatWindowFinal extends javax.swing.JFrame {
 
         privateRadioBtn.setText("Privado");
 
-        userComboBox.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "User 1", "User 2", "User 3", "User 4" }));
+        userComboBox.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { }));
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -206,6 +254,41 @@ public class ChatWindowFinal extends javax.swing.JFrame {
     private void publicRadioBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_publicRadioBtnActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_publicRadioBtnActionPerformed
+
+    private void refreshUsersComboBox(List<String> users) {
+        SwingUtilities.invokeLater(() -> {
+            List<String> items = new ArrayList<>();
+            String self = username != null ? username.trim() : null;
+            if (users != null) {
+                for (String u : users) {
+                    if (u != null) {
+                        String v = u.trim();
+                        if (!v.isEmpty() && (self == null || !v.equals(self)) && !items.contains(v)) {
+                            items.add(v);
+                        }
+                    }
+                }
+            }
+            String sel = (String) userComboBox.getSelectedItem();
+            javax.swing.DefaultComboBoxModel<String> model = new javax.swing.DefaultComboBoxModel<>(items.toArray(new String[0]));
+            userComboBox.setModel(model);
+            if (sel != null && items.contains(sel)) {
+                userComboBox.setSelectedItem(sel);
+            } else if (!items.isEmpty()) {
+                userComboBox.setSelectedIndex(0);
+            }
+        });
+    }
+
+    private boolean areAllStrings(List<?> list) {
+        boolean result = true;
+        for (Object o : list) {
+            if (!(o instanceof String)) {
+                result = false;
+            }
+        }
+        return result;
+    }
 
     /**
      * @param args the command line arguments
