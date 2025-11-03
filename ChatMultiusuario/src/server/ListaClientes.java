@@ -43,7 +43,7 @@ public class ListaClientes {
     /**
      * Retransmite un mensaje público a todos los clientes excepto al remitente
      */
-    public synchronized void retransmitirMensajePublico(String remitente, String mensaje) {
+    public void retransmitirMensajePublico(String remitente, String mensaje) {
         String mensajeFormateado = "[" + remitente + "] " + mensaje;
         int enviados = 0;
 
@@ -101,7 +101,7 @@ public class ListaClientes {
      * Notifica a todos los clientes (excepto al nuevo) cuando alguien se
      * conecta
      */
-    public synchronized void notificarConexion(String nuevoCliente) {
+    public void notificarConexion(String nuevoCliente) {
         String mensajeNotificacion = ">>> " + nuevoCliente + " se ha conectado al chat <<<";
         int enviados = 0;
 
@@ -131,7 +131,7 @@ public class ListaClientes {
      * @return true si el mensaje fue entregado correctamente, false si el
      * destinatario no existe
      */
-    public synchronized boolean enviarMensajePrivado(String remitente, String destinatario, String mensaje) {
+    public boolean enviarMensajePrivado(String remitente, String destinatario, String mensaje) {
         boolean entregado = false;
 
         for (Object[] cliente : clientes) {
