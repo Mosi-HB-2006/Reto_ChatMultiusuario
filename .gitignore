@@ -44,3 +44,4 @@ nbdist/
 .classpath
 .project
 .settings/
+ChatMultiusuario/chat_server.txt
