@@ -18,10 +18,12 @@ import java.net.Socket;
 public class Servidor {
     private final int PUERTO = 5000;
     private final int MAX_CLIENTES = 5;
+    private final long INTERVALO_MONITOR = 30000; // 30 segundos
     private final Contador conexionesActivas = new Contador();
     private final Logger logger = Logger.getInstance();
     private final ListaClientes listaClientes = new ListaClientes();
-    
+    private Monitor monitor;
+    private Thread hiloMonitor;
     public void iniciar() {
         ServerSocket servidor;
         Socket cliente;
@@ -33,6 +35,11 @@ public class Servidor {
             servidor = new ServerSocket(PUERTO);
             System.out.println("Servidor iniciado. Esperando clientes...");
             logger.log("SERVIDOR INICIADO - Puerto: " + PUERTO);
+
+             // Iniciar monitor
+            monitor = new Monitor(listaClientes, conexionesActivas, logger, INTERVALO_MONITOR);
+            hiloMonitor = new Thread(monitor);
+            hiloMonitor.start();
 
             while (true) {
                 try {
@@ -65,7 +72,7 @@ public class Servidor {
                         System.out.println("Cliente " + nombre + " conectado desde " + cliente.getInetAddress().getHostAddress() + ". Conexiones activas: " + activas);
                         logger.logUserConnected(nombre, cliente.getInetAddress().getHostAddress());
 
-                        hilo = new Thread(new ManejadorCliente(cliente, nombre, conexionesActivas, logger, listaClientes, entradaCliente));
+                        hilo = new Thread(new ManejadorCliente(cliente, nombre, conexionesActivas, logger, listaClientes, entradaCliente,monitor));
                         hilo.start();
                     }
 

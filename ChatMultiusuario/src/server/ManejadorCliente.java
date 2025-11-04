@@ -17,14 +17,16 @@ public class ManejadorCliente implements Runnable {
     private  Logger logger;
     private  ListaClientes listaClientes;
     private  ObjectInputStream entrada;
+    private Monitor monitor;
 
-    public ManejadorCliente(Socket socket, String clientName, Contador conexionesActivas, Logger logger, ListaClientes listaClientes, ObjectInputStream entrada) {
+    public ManejadorCliente(Socket socket, String clientName, Contador conexionesActivas, Logger logger, ListaClientes listaClientes, ObjectInputStream entrada, Monitor monitor) {
         this.socket = socket;
         this.clientName = clientName;
         this.conexionesActivas = conexionesActivas;
         this.logger = logger;
         this.listaClientes = listaClientes;
         this.entrada = entrada;
+        this.monitor = monitor;
     }
 
     @Override
@@ -125,6 +127,7 @@ public class ManejadorCliente implements Runnable {
                             } else {
                                 listaClientes.retransmitirMensajePublico(clientName, mensajeCliente);
                                 logger.logPublicMessage(clientName, mensajeCliente);
+                                monitor.actualizarUltimoMensaje(clientName + ": " + mensajeCliente);
                             }
                         }
                     }
