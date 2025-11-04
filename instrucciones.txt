@@ -1,0 +1,15 @@
+1. Abre el proyecto ChatMultiusuario en NetBeans.
+
+2. Cuando el proyecto esté abierto, ejecuta el servidor ubicado en el paquete server 
+(clic derecho en la clase Servidor y seleccionar la opción Ejecutar).
+
+3. Una vez abierto el servidor, se debe ejecutar el main para iniciar sesion con todos los usuarios deseados.
+
+4. Para iniciar un usuario, introduce su nombre; luego la IP (en local sería "localhost") 
+y el puerto por defecto es 5000 (esto se puede configurar en la clase Servidor si quieres).
+
+5. Con los usuarios iniciados, se puede mandar un mensaje escribiendo el texto en el textfield de abajo a la izquierda, 
+además de seleccionar si el mensaje es público o privado.
+   5.1. Si el mensaje es privado, se debe seleccionar el destinatario en el combobox de abajo a la derecha de la ventana.
+
+6. Una vez escrito el mensaje, pulsar el botón Enviar para publicarlo.
