@@ -8,8 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Clase simple para manejar la lista de clientes conectados usando ArrayList
- *
  * @author 2dami
  */
 public class ListaClientes {
@@ -22,27 +20,18 @@ public class ListaClientes {
         this.logger = Logger.getInstance();
     }
 
-    /**
-     * Agrega un cliente a la lista
-     */
     public synchronized void agregarCliente(String nombre, ObjectOutputStream salida) {
         clientes.add(new Object[]{nombre, salida});
         logger.log("Cliente agregado: " + nombre + " (Total: " + clientes.size() + ")");
         difundirUsuarios();
     }
 
-    /**
-     * Remueve un cliente de la lista
-     */
     public synchronized void removerCliente(String nombre) {
         clientes.removeIf(cliente -> nombre.equals((String) cliente[0]));
         logger.log("Cliente removido: " + nombre + " (Total: " + clientes.size() + ")");
         difundirUsuarios();
     }
 
-    /**
-     * Retransmite un mensaje público a todos los clientes excepto al remitente
-     */
     public void retransmitirMensajePublico(String remitente, String mensaje) {
         String mensajeFormateado = "[" + remitente + "] " + mensaje;
         int enviados = 0;
@@ -56,7 +45,6 @@ public class ListaClientes {
                 enviados++;
             } catch (Exception e) {
                 logger.logError("Error retransmitiendo a " + nombreCliente + ": " + e.getMessage());
-                // Si hay error, remover el cliente (probablemente desconectado)
                 clientes.remove(cliente);
             }
         }
@@ -64,7 +52,7 @@ public class ListaClientes {
         logger.log("Mensaje público retransmitido de " + remitente + " a " + enviados + " clientes");
     }
 
-    public synchronized List<String> obtenerNombresSnapshot() {
+    public synchronized List<String> obtenerNombres() {
         List<String> nombres = new ArrayList<>();
         for (Object[] c : clientes) {
             nombres.add((String) c[0]);
@@ -73,7 +61,7 @@ public class ListaClientes {
     }
 
     private synchronized void difundirUsuarios() {
-        List<String> nombres = obtenerNombresSnapshot();
+        List<String> nombres = obtenerNombres();
         for (Object[] cliente : clientes) {
             ObjectOutputStream salidaCliente = (ObjectOutputStream) cliente[1];
             try {
@@ -90,17 +78,10 @@ public class ListaClientes {
         difundirUsuarios();
     }
 
-    /**
-     * Obtiene el número de clientes conectados
-     */
     public synchronized int getNumeroClientes() {
         return clientes.size();
     }
 
-    /**
-     * Notifica a todos los clientes (excepto al nuevo) cuando alguien se
-     * conecta
-     */
     public void notificarConexion(String nuevoCliente) {
         String mensajeNotificacion = ">>> " + nuevoCliente + " se ha conectado al chat <<<";
         int enviados = 0;
@@ -114,26 +95,14 @@ public class ListaClientes {
                 enviados++;
             } catch (Exception e) {
                 logger.logError("Error notificando conexión a " + nombreCliente + ": " + e.getMessage());
-                // Si hay error, remover el cliente (probablemente desconectado)
                 clientes.remove(cliente);
             }
         }
 
         logger.log("Notificación de conexión enviada a " + enviados + " clientes");
     }
-
-    /**
-     * Envía un mensaje privado a un destinatario específico
-     *
-     * @param remitente El nombre del cliente que envía el mensaje
-     * @param destinatario El nombre del cliente que debe recibir el mensaje
-     * @param mensaje El contenido del mensaje
-     * @return true si el mensaje fue entregado correctamente, false si el
-     * destinatario no existe
-     */
+    
     public boolean enviarMensajePrivado(String remitente, String destinatario, String mensaje) {
-        boolean entregado = false;
-
         for (Object[] cliente : clientes) {
             String nombreCliente = (String) cliente[0];
             ObjectOutputStream salidaCliente = (ObjectOutputStream) cliente[1];
@@ -142,18 +111,17 @@ public class ListaClientes {
                 try {
                     String mensajeFormateado = "[Privado de " + remitente + "] " + mensaje;
                     salidaCliente.writeObject(mensajeFormateado);
+                    
                     logger.log("Mensaje privado entregado de " + remitente + " a " + destinatario);
-                    entregado = true;
-                    return entregado; // Encontramos al destinatario y enviamos correctamente
+                    return true;
                 } catch (Exception e) {
                     logger.logError("Error enviando mensaje privado a " + destinatario + ": " + e.getMessage());
-                    // Si hay error, remover el cliente (probablemente desconectado)
                     clientes.remove(cliente);
-                    return false; // Error al enviar, salimos del método
+                    return false;
                 }
             }
         }
 
-        return entregado; // Destinatario no encontrado
+        return false;
     }
 }

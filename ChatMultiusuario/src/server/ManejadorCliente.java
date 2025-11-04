@@ -39,73 +39,64 @@ public class ManejadorCliente implements Runnable {
         try {
             s = this.socket;
             salida = new ObjectOutputStream(s.getOutputStream());
-            entrada = this.entrada; // reutilizar la entrada proporcionada por el servidor
+            entrada = this.entrada;
 
-            // Agregar cliente a la lista de clientes conectados
             listaClientes.agregarCliente(clientName, salida);
 
-            // Enviar la lista de usuarios al nuevo cliente inmediatamente
             try {
-                java.util.List<String> snapshot = listaClientes.obtenerNombresSnapshot();
+                java.util.List<String> snapshot = listaClientes.obtenerNombres();
                 salida.writeObject(snapshot);
                 salida.flush();
-                try { salida.reset(); } catch (Exception ignore) {}
+                salida.reset();
             } catch (Exception e) {
                 logger.logError("Error enviando lista inicial a " + clientName + ": " + e.getMessage());
             }
 
-            // Notificar a los demás clientes que este usuario se ha conectado
             listaClientes.notificarConexion(clientName);
 
-            // Enviar confirmación al cliente
             salida.writeObject("Conexión exitosa al servidor. Bienvenido " + clientName);
 
-            // Recibir saludo del cliente
             obj = entrada.readObject();
             if (obj instanceof String) {
                 saludoCliente = (String) obj;
             } else {
                 saludoCliente = String.valueOf(obj);
             }
+            
             System.out.println("[Cliente " + clientName + "] dice: " + saludoCliente);
             logger.logPublicMessage(clientName, saludoCliente);
 
-            // Bucle principal para recibir mensajes del cliente
             while (true) {
                 obj = entrada.readObject();
 
                 if (obj instanceof String) {
                     mensajeCliente = (String) obj;
 
-                    // Si el mensaje no está vacío, procesarlo
                     if (!mensajeCliente.trim().isEmpty()) {
                         String trimmed = mensajeCliente.trim();
 
-                        // Comando para solicitar la lista de usuarios (no loguear ni retransmitir)
                         if ("GET_USERS".equalsIgnoreCase(trimmed)) {
                             try {
-                                java.util.List<String> snapshot = listaClientes.obtenerNombresSnapshot();
-                                salida.writeObject(snapshot);
+                                java.util.List<String> users = listaClientes.obtenerNombres();
+                                salida.writeObject(users);
                                 salida.flush();
-                                try { salida.reset(); } catch (Exception ignore) {}
+                                salida.reset();
                             } catch (Exception e) {
                                 logger.logError("Error enviando GET_USERS a " + clientName + ": " + e.getMessage());
                             }
                         } else {
                             System.out.println("[Cliente " + clientName + "] dice: " + mensajeCliente);
 
-                            // Verificar si es un mensaje privado (empieza con @usuario)
                             if (mensajeCliente.startsWith("@")) {
-                                // Procesar mensaje privado
                                 int espacioIndex = mensajeCliente.indexOf(" ");
-                                if (espacioIndex > 1) { // Debe haber al menos un carácter después del @
+                                
+                                if (espacioIndex > 1) {
                                     String destinatario = mensajeCliente.substring(1, espacioIndex);
                                     String mensajePrivado = mensajeCliente.substring(espacioIndex + 1).trim();
 
                                     if (!mensajePrivado.isEmpty()) {
                                         boolean entregado = listaClientes.enviarMensajePrivado(clientName, destinatario, mensajePrivado);
 
-                                        // Informar al remitente si el mensaje fue entregado
                                         try {
                                             if (entregado) {
                                                 salida.writeObject("Mensaje privado enviado a " + destinatario);
@@ -116,7 +107,6 @@ public class ManejadorCliente implements Runnable {
                                             logger.logError("Error enviando confirmación a " + clientName + ": " + e.getMessage());
                                         }
 
-                                        // Registrar el mensaje privado en el log
                                         logger.logPrivateMessage(clientName, destinatario, mensajePrivado);
                                     } else {
                                         try {
@@ -133,10 +123,7 @@ public class ManejadorCliente implements Runnable {
                                     }
                                 }
                             } else {
-                                // Es un mensaje público - retransmitir a todos los demás clientes
                                 listaClientes.retransmitirMensajePublico(clientName, mensajeCliente);
-
-                                // Registrar el mensaje en el log
                                 logger.logPublicMessage(clientName, mensajeCliente);
                             }
                         }
@@ -145,7 +132,6 @@ public class ManejadorCliente implements Runnable {
             }
 
         } catch (Exception e) {
-            // Si es IOException, probablemente el cliente se desconectó
             if (e.getClass().getSimpleName().equals("IOException")) {
                 System.out.println("[Cliente " + clientName + "] se desconectó");
             } else {
@@ -153,9 +139,9 @@ public class ManejadorCliente implements Runnable {
                 logger.logError("Cliente " + clientName + ": " + e.getMessage());
             }
         } finally {
-            // Remover cliente de la lista y cerrar conexiones
             listaClientes.removerCliente(clientName);
             int restantes = conexionesActivas.decrementar();
+            
             System.out.println("[Cliente " + clientName + "] finalizado. Conexiones activas: " + restantes);
             logger.logUserDisconnected(clientName);
 

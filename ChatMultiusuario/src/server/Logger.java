@@ -10,10 +10,10 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
- * Clase Logger thread-safe para registrar eventos del servidor de chat
  * @author 2dami
  */
 public class Logger {
+
     private static Logger instance;
     private static final Object lock = new Object();
     private ObjectOutputStream writer;
@@ -30,30 +30,24 @@ public class Logger {
 
     public static Logger getInstance() {
         if (instance == null) {
-            synchronized (lock) {
-                if (instance == null) {
-                    instance = new Logger();
-                }
+            if (instance == null) {
+                instance = new Logger();
             }
         }
         return instance;
     }
 
     public void log(String message) {
-        synchronized (lock) {
-            String timestamp = LocalDateTime.now().format(formatter);
-            String logMessage = "[" + timestamp + "] " + message;
+        String timestamp = LocalDateTime.now().format(formatter);
+        String logMessage = "[" + timestamp + "] " + message;
 
-            // Imprimir en consola también
-            System.out.println(logMessage);
+        System.out.println(logMessage);
 
-            // Escribir en archivo
-            if (writer != null) {
-                try {
-                    writer.writeObject(logMessage);
-                } catch (IOException e) {
-                    System.err.println("Error escribiendo en log: " + e.getMessage());
-                }
+        if (writer != null) {
+            try {
+                writer.writeObject(logMessage);
+            } catch (IOException e) {
+                System.err.println("Error escribiendo en log: " + e.getMessage());
             }
         }
     }

@@ -26,7 +26,7 @@ public class Servidor {
         ServerSocket servidor;
         Socket cliente;
         int activas;
-        String nombre = "";
+        String nombre;
         Thread hilo;
         
         try {
@@ -39,29 +39,29 @@ public class Servidor {
                     cliente = servidor.accept();
 
                     if (conexionesActivas.get() >= MAX_CLIENTES) {
-                        try (ObjectOutputStream salida = new ObjectOutputStream(cliente.getOutputStream())) {
-                            salida.writeObject("Servidor lleno. Intenta más tarde.");
-                        } catch (Exception ignore) {}
-                        try { cliente.close(); } catch (IOException ignore) {}
+                        ObjectOutputStream salida = new ObjectOutputStream(cliente.getOutputStream());
+                        salida.writeObject("Servidor lleno. Intenta más tarde.");
+                        cliente.close();
+                        
                         System.out.println("Conexión rechazada: límite de " + MAX_CLIENTES + " alcanzado.");
                         logger.log("CONEXIÓN RECHAZADA - Límite de " + MAX_CLIENTES + " clientes alcanzado");
                     } else {
                         activas = conexionesActivas.incrementar();
 
                         ObjectInputStream entradaCliente = null;
-                        // Recibir el nombre del cliente (no cerrar el stream aquí para no cerrar el socket)
+                        
                         try {
                             entradaCliente = new ObjectInputStream(cliente.getInputStream());
                             Object nombreObj = entradaCliente.readObject();
                             if (nombreObj instanceof String && !((String) nombreObj).trim().isEmpty()) {
                                 nombre = (String) nombreObj;
                             } else {
-                                nombre = "Usuario";  // Nombre por defecto simple
+                                nombre = "Usuario";
                             }
-                            // No cerrar entradaCliente aquí; ManejadorCliente creará sus propios streams sobre el socket
                         } catch (Exception e) {
-                            nombre = "Usuario";  // Nombre por defecto si hay error
+                            nombre = "Usuario";
                         }
+                        
                         System.out.println("Cliente " + nombre + " conectado desde " + cliente.getInetAddress().getHostAddress() + ". Conexiones activas: " + activas);
                         logger.logUserConnected(nombre, cliente.getInetAddress().getHostAddress());
 

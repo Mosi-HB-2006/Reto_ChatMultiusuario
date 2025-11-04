@@ -5,12 +5,15 @@
  */
 package client;
 
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.JOptionPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
@@ -45,62 +48,52 @@ public class ChatWindowFinal extends javax.swing.JFrame {
         this.out = out;
         this.in = in;
         initComponents();
-        try {
-            if (this.username != null) {
-                userLabel.setText("Usuario: " + this.username);
-            }
-        } catch (Exception ignore) {}
 
-        // Initialize buffer and UI area
+        userLabel.setText("Usuario: " + this.username);
+
         publicBuffer = Collections.synchronizedList(new ArrayList<>());
         latestUsers = Collections.synchronizedList(new ArrayList<>());
         privateBuffer = Collections.synchronizedList(new ArrayList<>());
+
         publicTextArea = new JTextArea();
         publicTextArea.setEditable(false);
         publicScrollPane.setViewportView(publicTextArea);
+
         privateTextArea = new JTextArea();
         privateTextArea.setEditable(false);
         privateScrollPane.setViewportView(privateTextArea);
 
-        // Background reader: store messages into buffer
         Thread reader = new Thread(new Runnable() {
             @Override
             public void run() {
+
                 try {
                     while (true) {
+
                         Object obj = in.readObject();
+
                         if (obj != null) {
                             if (obj instanceof List) {
-                                List<?> list = (List<?>) obj;
-                                boolean allStrings = areAllStrings(list);
-                                if (allStrings) {
-                                    synchronized (latestUsers) {
-                                        latestUsers.clear();
-                                        for (Object o : list) { latestUsers.add((String) o); }
-                                    }
-                                } else {
-                                    publicBuffer.add(String.valueOf(obj));
+                                List<String> list = (List<String>) obj;
+                                latestUsers.clear();
+                                for (Object o : list) {
+                                    latestUsers.add((String) o);
                                 }
+
                             } else {
                                 String s = String.valueOf(obj);
                                 if (s.startsWith("USERS:")) {
                                     String rest = s.substring("USERS:".length());
                                     String[] parts = rest.split(",");
-                                    synchronized (latestUsers) {
-                                        latestUsers.clear();
-                                        for (String p : parts) {
-                                            String u = p.trim();
-                                            if (!u.isEmpty()) latestUsers.add(u);
+                                    latestUsers.clear();
+                                    for (String p : parts) {
+                                        String u = p.trim();
+                                        if (!u.isEmpty()) {
+                                            latestUsers.add(u);
                                         }
                                     }
-                                } else if (s.trim().equalsIgnoreCase("GET_USERS")) {
-                                    // Ignorar comandos de control si llegaran por alguna razón
                                 } else if (s.startsWith("[Privado de ")) {
-                                    synchronized (privateBuffer) {
-                                        privateBuffer.add(s);
-                                    }
-                                } else if (s.startsWith("Mensaje privado enviado a ")) {
-                                    // No mostrar confirmaciones del servidor, ya realizamos eco local
+                                    privateBuffer.add(s);
                                 } else {
                                     publicBuffer.add(s);
                                 }
@@ -109,12 +102,20 @@ public class ChatWindowFinal extends javax.swing.JFrame {
                     }
                 } catch (Exception e) {
                     // Socket closed or error; stop thread silently
+                    try {
+                        System.out.println("Error occured, closing connections");
+                        socket.close();
+                        out.close();
+                        in.close();
+                    } catch (IOException ex) {
+                        Logger.getLogger(ChatWindowFinal.class.getName()).log(Level.SEVERE, null, ex);
+                    }
                 }
             }
         });
+
         reader.start();
 
-        // UI refresh timer: every 5 seconds, render buffer to text area
         Timer refreshTimer = new Timer(5000, evt -> {
             List<String> snapshot;
             synchronized (publicBuffer) {
@@ -126,7 +127,6 @@ public class ChatWindowFinal extends javax.swing.JFrame {
         refreshTimer.setRepeats(true);
         refreshTimer.start();
 
-        // Private area refresh timer
         Timer privateTimer = new Timer(3000, evt -> {
             List<String> snapshot;
             synchronized (privateBuffer) {
@@ -138,7 +138,6 @@ public class ChatWindowFinal extends javax.swing.JFrame {
         privateTimer.setRepeats(true);
         privateTimer.start();
 
-        // Users combo refresh timer
         Timer usersTimer = new Timer(3000, evt -> {
             List<String> usersSnapshot;
             synchronized (latestUsers) {
@@ -149,13 +148,14 @@ public class ChatWindowFinal extends javax.swing.JFrame {
         usersTimer.setRepeats(true);
         usersTimer.start();
 
-        // Request user list on start (in case initial broadcast was missed)
-        try {
-            if (out != null) {
+        if (out != null) {
+            try {
                 out.writeObject("GET_USERS");
                 out.flush();
+            } catch (IOException ex) {
+                Logger.getLogger(ChatWindowFinal.class.getName()).log(Level.SEVERE, null, ex);
             }
-        } catch (Exception ignore) {}
+        }
     }
 
     /**
@@ -167,6 +167,7 @@ public class ChatWindowFinal extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
+        buttonGroup1 = new javax.swing.ButtonGroup();
         messageField = new javax.swing.JTextField();
         sendBtn = new javax.swing.JButton();
         userLabel = new javax.swing.JLabel();
@@ -194,6 +195,8 @@ public class ChatWindowFinal extends javax.swing.JFrame {
 
         userLabel.setText("Usuario: ");
 
+        buttonGroup1.add(publicRadioBtn);
+        publicRadioBtn.setSelected(true);
         publicRadioBtn.setText("Publico");
         publicRadioBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -201,9 +204,10 @@ public class ChatWindowFinal extends javax.swing.JFrame {
             }
         });
 
+        buttonGroup1.add(privateRadioBtn);
         privateRadioBtn.setText("Privado");
 
-        userComboBox.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { }));
+        userComboBox.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "User 1", "User 2", "User 3", "User 4" }));
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -264,14 +268,19 @@ public class ChatWindowFinal extends javax.swing.JFrame {
     private void sendBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_sendBtnActionPerformed
         try {
             if (out != null) {
+
                 String msg = messageField.getText();
+
                 if (msg != null && !msg.trim().isEmpty()) {
                     String toSend = msg.trim();
+
                     boolean canSend = true;
                     boolean isPrivate = false;
                     String privateEcho = null;
+
                     if (privateRadioBtn.isSelected()) {
                         String target = (String) userComboBox.getSelectedItem();
+
                         if (target == null || target.trim().isEmpty()) {
                             JOptionPane.showMessageDialog(this, "Selecciona un usuario para mensaje privado", "Aviso", JOptionPane.INFORMATION_MESSAGE);
                             canSend = false;
@@ -281,10 +290,11 @@ public class ChatWindowFinal extends javax.swing.JFrame {
                             toSend = "@" + target.trim() + " " + toSend;
                         }
                     }
+
                     if (canSend) {
                         out.writeObject(toSend);
                         if (isPrivate && privateEcho != null) {
-                            synchronized (privateBuffer) { privateBuffer.add(privateEcho); }
+                            privateBuffer.add(privateEcho);
                         }
                         messageField.setText("");
                     }
@@ -300,76 +310,33 @@ public class ChatWindowFinal extends javax.swing.JFrame {
     }//GEN-LAST:event_publicRadioBtnActionPerformed
 
     private void refreshUsersComboBox(List<String> users) {
-        SwingUtilities.invokeLater(() -> {
-            List<String> items = new ArrayList<>();
-            String self = username != null ? username.trim() : null;
-            if (users != null) {
-                for (String u : users) {
-                    if (u != null) {
-                        String v = u.trim();
-                        if (!v.isEmpty() && (self == null || !v.equals(self)) && !items.contains(v)) {
-                            items.add(v);
-                        }
+        List<String> items = new ArrayList<>();
+        String self = username != null ? username.trim() : null;
+
+        if (users != null) {
+            for (String u : users) {
+                if (u != null) {
+                    String v = u.trim();
+                    if (!v.isEmpty() && (self == null || !v.equals(self)) && !items.contains(v)) {
+                        items.add(v);
                     }
                 }
             }
-            String sel = (String) userComboBox.getSelectedItem();
-            javax.swing.DefaultComboBoxModel<String> model = new javax.swing.DefaultComboBoxModel<>(items.toArray(new String[0]));
-            userComboBox.setModel(model);
-            if (sel != null && items.contains(sel)) {
-                userComboBox.setSelectedItem(sel);
-            } else if (!items.isEmpty()) {
-                userComboBox.setSelectedIndex(0);
-            }
-        });
-    }
-
-    private boolean areAllStrings(List<?> list) {
-        boolean result = true;
-        for (Object o : list) {
-            if (!(o instanceof String)) {
-                result = false;
-            }
         }
-        return result;
-    }
-
-    /**
-     * @param args the command line arguments
-     */
-    public static void main(String args[]) {
-        /* Set the Nimbus look and feel */
-        //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
-        /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
-         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
-         */
-        try {
-            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
-                if ("Nimbus".equals(info.getName())) {
-                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
-                    break;
-                }
-            }
-        } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(ChatWindowFinal.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(ChatWindowFinal.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(ChatWindowFinal.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(ChatWindowFinal.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+        
+        String sel = (String) userComboBox.getSelectedItem();
+        javax.swing.DefaultComboBoxModel<String> model = new javax.swing.DefaultComboBoxModel<>(items.toArray(new String[0]));
+        userComboBox.setModel(model);
+        
+        if (sel != null && items.contains(sel)) {
+            userComboBox.setSelectedItem(sel);
+        } else if (!items.isEmpty()) {
+            userComboBox.setSelectedIndex(0);
         }
-        //</editor-fold>
-
-        /* Create and display the form */
-        java.awt.EventQueue.invokeLater(new Runnable() {
-            public void run() {
-                new ChatWindowFinal().setVisible(true);
-            }
-        });
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.ButtonGroup buttonGroup1;
     private javax.swing.JTextField messageField;
     private javax.swing.JRadioButton privateRadioBtn;
     private javax.swing.JScrollPane privateScrollPane;
