@@ -77,7 +77,7 @@ public class Monitor implements Runnable {
         
         // Obtener lista de clientes conectados
         if (clientesConectados > 0) {
-            reporte.append("• Clientes actuales: ").append(String.join(", ", listaClientes.obtenerNombresSnapshot())).append("\n");
+            reporte.append("• Clientes actuales: ").append(String.join(", ", listaClientes.obtenerNombres())).append("\n");
         } else {
             reporte.append("• Clientes actuales: Ninguno\n");
         }
